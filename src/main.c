@@ -137,10 +137,12 @@ int main(int argc, char** argv) {
             if (glyph_h > largest_h) {
                 largest_h = glyph_h;
             }
-
+            
+            // TODO: Add spread to offset and advance?
             fprintf(font_info_file, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",
-                    (int)c, (int)x, (int)y, glyph_w, glyph_h, (int)glyph.offset.x, (int)glyph.offset.y,
-                    (int)glyph.advance.x, (int)glyph.advance.y);
+                    (int)c, (int)x, (int)y, glyph_w, glyph_h, 
+                    (int)glyph.offset.x / args.scale, (int)glyph.offset.y / args.scale, 
+                    (int)glyph.advance.x / args.scale, (int)glyph.advance.y / args.scale);
 
             x += glyph_w + args.padding[0] + args.padding[1];
         }
