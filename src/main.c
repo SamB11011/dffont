@@ -11,7 +11,7 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
 
-#define FIRST_CHAR '!'
+#define FIRST_CHAR ' '
 #define LAST_CHAR  '~'
 #define NUM_CHARS  (LAST_CHAR - FIRST_CHAR + 1)
 
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
             exit(1);
         }
     }
-    fprintf(font_info_file, "num_chars=%d\n", NUM_CHARS);
+    fprintf(font_info_file, "num_glyphs=%d\n", NUM_CHARS);
     fprintf(font_info_file, "ppem=%d\n", args.ppem);
     fprintf(font_info_file, "line_gap=%d\n", instance.lineGap);
 
@@ -80,6 +80,15 @@ int main(int argc, char** argv) {
     TTY_U32 x = args.padding[0];
     TTY_U32 y = args.padding[2];
     TTY_U32 largest_h = 0;
+    
+    #define WRITE_GLYPH()\
+    {\
+        fprintf(\
+            font_info_file, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",\
+            (int)c, (int)x, (int)y, glyph_w, glyph_h,\
+            (int)glyph.offset.x / args.scale, (int)glyph.offset.y / args.scale,\
+            (int)glyph.advance.x / args.scale, (int)glyph.advance.y / args.scale);\
+    }
 
     for (char c = FIRST_CHAR; c <= LAST_CHAR; c++) {
         TTY_U32   glyphIdx;
@@ -101,6 +110,14 @@ int main(int argc, char** argv) {
                 goto internal_font_error;
             }
         }
+        
+        int glyph_h = glyph.size.y / args.scale + spread_size;
+        int glyph_w = glyph.size.x / args.scale + spread_size;
+        
+        if (c == ' ') {
+            WRITE_GLYPH();
+            continue;
+        }
 
         calc_df(&df);
 
@@ -113,39 +130,31 @@ int main(int argc, char** argv) {
 
         memset(df.pixels, 0, df.w * df.h);
 
-        {
-            int glyph_h = glyph.size.y / args.scale + spread_size;
-            int glyph_w = glyph.size.x / args.scale + spread_size;
-
-            if (y + glyph_h > args.out_image_h) {
-                // There isn't enough room in the output image for the glyph
-                break;
-            }
-
-            if (x + glyph_w > args.out_image_w) {
-                x = args.padding[0];
-                y += largest_h + args.padding[2] + args.padding[3];
-                largest_h = 0;
-            }
-
-            for (int yi = 0; yi < glyph_h; yi++) {
-                uint8_t* out = out_pixels + (x + (yi + y) * args.out_image_w);
-                uint8_t* down = down_pixels + (yi * down_w);
-                memcpy(out, down, glyph_w);
-            }
-
-            if (glyph_h > largest_h) {
-                largest_h = glyph_h;
-            }
-            
-            // TODO: Add spread to offset and advance?
-            fprintf(font_info_file, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",
-                    (int)c, (int)x, (int)y, glyph_w, glyph_h, 
-                    (int)glyph.offset.x / args.scale, (int)glyph.offset.y / args.scale, 
-                    (int)glyph.advance.x / args.scale, (int)glyph.advance.y / args.scale);
-
-            x += glyph_w + args.padding[0] + args.padding[1];
+        if (y + glyph_h > args.out_image_h) {
+            // There isn't enough room in the output image for the glyph
+            break;
         }
+
+        if (x + glyph_w > args.out_image_w) {
+            x = args.padding[0];
+            y += largest_h + args.padding[2] + args.padding[3];
+            largest_h = 0;
+        }
+
+        for (int yi = 0; yi < glyph_h; yi++) {
+            uint8_t* out = out_pixels + (x + (yi + y) * args.out_image_w);
+            uint8_t* down = down_pixels + (yi * down_w);
+            memcpy(out, down, glyph_w);
+        }
+
+        if (glyph_h > largest_h) {
+            largest_h = glyph_h;
+        }
+        
+        // TODO: Add spread to offset and advance?
+        WRITE_GLYPH();
+
+        x += glyph_w + args.padding[0] + args.padding[1];
     }
 
     stbi_write_png(
