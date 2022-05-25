@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
         fprintf(\
             font_info_file, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",\
             (int)c, (int)x, (int)y, glyph_w, glyph_h,\
-            (int)glyph.offset.x / args.scale, (int)glyph.offset.y / args.scale,\
+            (int)glyph.offset.x / args.scale, (int)(instance.ascender - glyph.offset.y) / args.scale,\
             (int)glyph.advance.x / args.scale, (int)glyph.advance.y / args.scale);\
     }
 
