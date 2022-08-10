@@ -1,8 +1,8 @@
 @echo off
 
-set GLFW_DIR=C:\projects\dependencies\msvc\glfw_3.3.4
-set GLFW3_DLL=%GLFW_DIR%\lib\glfw3.dll
-set GLFW3_LIB=%GLFW_DIR%\lib\glfw3dll.lib
+set GLFW_DIR=C:\projects\libraries\msvc\glfw
+set GLFW3_DLL=%GLFW_DIR%\x64\bin\glfw3.dll
+set GLFW3_LIB=%GLFW_DIR%\x64\lib\glfw3dll.lib
 set GLFW3_INC=%GLFW_DIR%\include
 
 set GLAD_DIR=.\src\glad
@@ -11,7 +11,6 @@ set GLAD_INC=%GLAD_DIR%\include
 
 set SRC=.\src\*.c
 set EXE_NAME=example.exe
-set DEBUG_PARAMS=
 
 if not exist .\build (
     mkdir .\build
@@ -27,6 +26,6 @@ cl ^
     /I%GLFW3_INC% /I%GLAD_INC% ^
     /link /libpath %GLFW3_LIB%
 
-if %errorlevel%==0 (
+if exist *.obj (
     del *.obj
 )

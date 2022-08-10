@@ -3,10 +3,12 @@
 #include <assert.h>
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
-#include "stb_image.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+
+#include "../../src/dffont_client.h"
 
 
 /* ------- */
@@ -307,7 +309,7 @@ static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 
 int main() {
-    create_glfw_window("df font", 800, 600);
+    create_glfw_window("DFFont Client Example", 800, 600);
     glfwSetFramebufferSizeCallback(g_window, framebuffer_size_callback);
     
     {
