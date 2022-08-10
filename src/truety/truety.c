@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
 #include "truety.h"
@@ -13,6 +14,7 @@
 #define TTY_ACTIVE_EDGES_PER_CHUNK 10
 #define TTY_SUBDIVIDE_SQRD_ERROR   0x1  /* 26.6 */
 #define TTY_PIXELS_PER_SCANLINE    0x10 /* 26.6 */
+
 
 /* --------- */
 /* Debugging */
@@ -2726,19 +2728,16 @@ static void tty_execute_next_font_program_ins(TTY_Program_Context* ctx) {
 static TTY_Error tty_execute_font_program(TTY_Font* font) {
     TTY_LOG_PROGRAM("Font Program");
     
-    TTY_Program_Context ctx = {
-        .font            = font,
-        .instance        = NULL,
-        .glyph           = NULL,
-        .iupState        = TTY_IUP_STATE_DEFAULT,
-        .foundUnknownIns = TTY_FALSE,
-        .stream   = {
-            .execute_next_ins = tty_execute_next_font_program_ins,
-            .buff             = font->data + font->fpgm.off,
-            .cap              = font->fpgm.size,
-            .off              = 0,
-        }
-    };
+    TTY_Program_Context ctx;
+    ctx.font                    = font;
+    ctx.instance                = NULL;
+    ctx.glyph                   = NULL;
+    ctx.iupState                = TTY_IUP_STATE_DEFAULT;
+    ctx.foundUnknownIns         = TTY_FALSE;
+    ctx.stream.execute_next_ins = tty_execute_next_font_program_ins;
+    ctx.stream.buff             = font->data + font->fpgm.off;
+    ctx.stream.cap              = font->fpgm.size;
+    ctx.stream.off              = 0;
 
     return tty_execute_program(&ctx);
 }
@@ -2889,19 +2888,17 @@ static TTY_Error tty_execute_cv_program(TTY_Font* font, TTY_Instance* instance) 
     tty_reset_graphics_state(&font->hint.gs, &font->hint.zone1);
     tty_interp_stack_clear(&font->hint.stack);
 
-    TTY_Program_Context ctx = {
-        .font            = font,
-        .instance        = instance,
-        .glyph           = NULL,
-        .iupState        = TTY_IUP_STATE_DEFAULT,
-        .foundUnknownIns = TTY_FALSE,
-        .stream   = {
-            .execute_next_ins = tty_execute_next_cv_program_ins,
-            .buff             = font->data + font->prep.off,
-            .cap              = font->prep.size,
-            .off              = 0,
-        }
-    };
+    TTY_Program_Context ctx;
+    ctx.font                    = font;
+    ctx.instance                = instance;
+    ctx.glyph                   = NULL;
+    ctx.iupState                = TTY_IUP_STATE_DEFAULT;
+    ctx.foundUnknownIns         = TTY_FALSE;
+    ctx.stream.execute_next_ins = tty_execute_next_cv_program_ins;
+    ctx.stream.buff             = font->data + font->prep.off;
+    ctx.stream.cap              = font->prep.size;
+    ctx.stream.off              = 0;
+        
     
     return tty_execute_program(&ctx);
 }
@@ -3201,10 +3198,17 @@ static TTY_Error tty_add_glyph_points_to_zone_1(TTY_Font* font, TTY_Instance* in
 static TTY_U16 tty_get_glyph_advance_width(TTY_Font* font, TTY_U32 glyphIdx) {
     TTY_U8* hmtxData    = font->data + font->hmtx.off;
     TTY_U16 numHMetrics = tty_get_u16(font->data + font->hhea.off + 34);
-    if (glyphIdx < numHMetrics) {
-        return tty_get_u16(hmtxData + 4 * glyphIdx);
+    if (numHMetrics == 0) {
+        TTY_ASSERT(0);
+        return 0;
     }
-    return 0;
+    if (glyphIdx >= numHMetrics) {
+        // "As an optimization, the number of records can be less than the 
+        // number of glyphs, in which case the advance width value of the 
+        // last record applies to all remaining glyph IDs."
+        glyphIdx = numHMetrics - 1;
+    }
+    return tty_get_u16(hmtxData + 4 * glyphIdx);
 }
 
 static TTY_S32 tty_get_glyph_advance_height(TTY_Font* font) {
@@ -3230,7 +3234,7 @@ static TTY_S16 tty_get_glyph_left_side_bearing(TTY_Font* font, TTY_U32 glyphIdx)
     if (glyphIdx < numHMetrics) {
         return tty_get_s16(hmtxData + 4 * glyphIdx + 2);
     }
-    return tty_get_s16(hmtxData + 4 * numHMetrics + 2 * (numHMetrics - glyphIdx));
+    return tty_get_s16(hmtxData + 4 * numHMetrics + 2 * (glyphIdx - numHMetrics));
 }
 
 static TTY_S32 tty_get_glyph_top_side_bearing(TTY_Font* font, TTY_S16 yMax) {
@@ -3384,19 +3388,16 @@ static TTY_Error tty_execute_glyph_program(TTY_Font* font, TTY_Instance* instanc
     tty_reset_graphics_state(&font->hint.gs, &font->hint.zone1);
     tty_interp_stack_clear(&font->hint.stack);
 
-    TTY_Program_Context ctx = {
-        .font            = font,
-        .instance        = instance,
-        .glyph           = glyph,
-        .iupState        = TTY_IUP_STATE_DEFAULT,
-        .foundUnknownIns = TTY_FALSE,
-        .stream   = {
-            .execute_next_ins = tty_execute_next_glyph_program_ins,
-            .buff             = insBuff,
-            .cap              = insCount,
-            .off              = 0,
-        }
-    };
+    TTY_Program_Context ctx;
+    ctx.font                    = font;
+    ctx.instance                = instance;
+    ctx.glyph                   = glyph;
+    ctx.iupState                = TTY_IUP_STATE_DEFAULT;
+    ctx.foundUnknownIns         = TTY_FALSE;
+    ctx.stream.execute_next_ins = tty_execute_next_glyph_program_ins;
+    ctx.stream.buff             = insBuff;
+    ctx.stream.cap              = insCount;
+    ctx.stream.off              = 0;
 
     return tty_execute_program(&ctx);
 }
@@ -4069,7 +4070,7 @@ static void tty_sort_active_edges(TTY_Active_Edge_List* list) {
     }
 }
 
-static TTY_Error tty_insert_newly_active_edges(TTY_Active_Edge_List* list, TTY_Edges* edges, TTY_F26Dot6 scanline, TTY_F26Dot6 xIntersectionOff) {
+static TTY_Error tty_insert_new_active_edges(TTY_Active_Edge_List* list, TTY_Edges* edges, TTY_F26Dot6 scanline, TTY_F26Dot6 xIntersectionOff) {
     // Find any edges that intersect the current scanline and insert them into
     // the active edge list
 
@@ -4115,7 +4116,7 @@ static TTY_Error tty_insert_newly_active_edges(TTY_Active_Edge_List* list, TTY_E
     return TTY_ERROR_NONE;
 }
 
-static void tty_rasterize_active_edges(TTY_Active_Edge_List* activeEdges, TTY_F26Dot6* pixelBuff, TTY_U32 pixelBuffLen) {
+static void tty_rasterize_using_active_edges(TTY_Active_Edge_List* activeEdges, TTY_F26Dot6* pixelBuff, TTY_U32 pixelBuffLen) {
     #define TTY_INCREMENT_PIXEL_VALUE(idx, increment)\
         pixelBuff[idx]
 
@@ -4234,11 +4235,15 @@ static TTY_Error tty_render_glyph_impl(TTY_Font* font, TTY_Instance* instance, T
         // approximate the curves using edges
 
         TTY_Curves curves = {0};
-
-        TTY_Error error =
-            tty_add_glyph_points_to_zone_1(font, instance, glyph) ||
-            tty_convert_zone1_points_into_curves(font, &curves)   ||
-            tty_subdivide_curves_into_edges(&curves, &edges, font->startingEdgeCap);
+        TTY_Error  error;
+        
+        if ((error = tty_add_glyph_points_to_zone_1(font, instance, glyph))                   != TTY_ERROR_NONE ||
+            (error = tty_convert_zone1_points_into_curves(font, &curves))                     != TTY_ERROR_NONE ||
+            (error = tty_subdivide_curves_into_edges(&curves, &edges, font->startingEdgeCap)) != TTY_ERROR_NONE)
+        {
+            free(curves.buff);
+            return error;
+        }
 
         if (instance->useHinting) {
             // Touch flags need to be cleared here (Everything else in zone1 is 
@@ -4246,10 +4251,6 @@ static TTY_Error tty_render_glyph_impl(TTY_Font* font, TTY_Instance* instance, T
             memset(font->hint.zone1.touchFlags, TTY_UNTOUCHED, sizeof(TTY_U8) * font->hint.zone1.numOutlinePoints);
         }
         free(curves.buff);
-
-        if (error) {
-            return error;
-        }
     }
 
 
@@ -4321,16 +4322,12 @@ static TTY_Error tty_render_glyph_impl(TTY_Font* font, TTY_Instance* instance, T
 
 
     while (scanline >= scanlineEnd) {
-        // This is the current y-coordinate of the scanline without the 
-        // supplied y-offset applied. This is needed when working with edges
-        // since they also don't have the y-offset applied.
-
         tty_update_or_remove_active_edges(&activeEdges, scanline, xIntersectionOff);
         tty_sort_active_edges(&activeEdges);
 
         {
             TTY_Error error;
-            if ((error = tty_insert_newly_active_edges(&activeEdges, &edges, scanline, xIntersectionOff))) {
+            if ((error = tty_insert_new_active_edges(&activeEdges, &edges, scanline, xIntersectionOff))) {
                 free(edges.buff);
                 free(pixelBuff);
                 tty_active_edge_list_free(&activeEdges);
@@ -4338,7 +4335,7 @@ static TTY_Error tty_render_glyph_impl(TTY_Font* font, TTY_Instance* instance, T
             }
         }
 
-        tty_rasterize_active_edges(&activeEdges, pixelBuff, pixelBuffLen);
+        tty_rasterize_using_active_edges(&activeEdges, pixelBuff, pixelBuffLen);
         scanline -= TTY_PIXELS_PER_SCANLINE;
 
         if ((scanline & 0x3F) == 0) {
