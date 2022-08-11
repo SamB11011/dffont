@@ -22,8 +22,8 @@
 #define MAX_VERTEX_VALUES (MAX_GLYPHS * 4 * VBO_STRIDE)
 #define MAX_INDICES       (MAX_GLYPHS * 6)
 
-#define FONT_IMAGE_PATH    "./fonts/roboto-regular-df.png"
-#define FONT_INFO_PATH     "./fonts/roboto-regular-info"
+#define FONT_IMAGE_PATH    "./fonts/bakbak-regular-df.png"
+#define FONT_INFO_PATH     "./fonts/bakbak-regular-info"
 #define NUM_GLYPHS_IN_FONT ('~' - ' ' + 1)
 
 typedef struct {
@@ -205,7 +205,7 @@ GLFWwindow* create_glfw_window(const char* title, int w, int h) {
 /* --------- */
 /* rendering */
 /* --------- */
-static void draw_text(const char* text, int x, int y, int scale) {
+static void draw_text(const char* text, int x, int y, float scale) {
     for (int i = 0; text[i] != '\0'; i++) {
         Glyph* glyph = g_glyphs + (text[i] - ' ');
         if (glyph->c == ' ') {
@@ -255,7 +255,7 @@ static void draw_frame() {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    draw_text("The quick brown fox jumps over the lazy dog.", 30, 30, 1);
+    draw_text("The quick brown fox jumps over the lazy dog.", 30, 30, 1.0);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
