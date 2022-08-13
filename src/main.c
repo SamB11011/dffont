@@ -16,7 +16,7 @@
 #define NUM_CHARS  (LAST_CHAR - FIRST_CHAR + 1)
 
 int main(int argc, char** argv) {
-    Args args;
+    Args args = {0};
     parse_args(&args, argc, argv);
 
     TTY_Font font;
@@ -130,15 +130,16 @@ int main(int argc, char** argv) {
 
         memset(df.pixels, 0, df.w * df.h);
 
-        if (y + glyph_h > args.out_image_h) {
-            // There isn't enough room in the output image for the glyph
-            break;
-        }
-
         if (x + glyph_w > args.out_image_w) {
             x = args.padding[0];
             y += largest_h + args.padding[2] + args.padding[3];
             largest_h = 0;
+        }
+        
+        // if (x + (y + glyph_h - 1) * args.out_image_w >= args.out_image_w * args.out_image_h)
+        if (y + glyph_h > args.out_image_h) {
+            fprintf(stderr, "warning: output image not large enough to hold all glyphs\n");
+            break;
         }
 
         for (int yi = 0; yi < glyph_h; yi++) {

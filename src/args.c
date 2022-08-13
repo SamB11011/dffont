@@ -4,35 +4,46 @@
 #include <math.h>
 #include "args.h"
 
-static void print_help_info() {
-    const char* help = 
-        "usage: dffont <path-to-ttf> <glyph-size> <width,height>\n"
-        "    <path-to-ttf>\n"
-        "            A path to a TTF file.\n"
+static void print_ttf_help() {
+    printf(
+        "usage:\n"
+        "    dffont ttf <path> <glyph-size> <width,height>\n"
+        "               [--spread=<value>] [--scale=<value>]\n"
+        "               [--padding=<left,right,top,bottom>]\n"
+        "               [--out-image=<path>] [--out-info=<path>]\n"
+        "\n"
+        "Description:\n"
+        "    Generates distance fields for glyphs in a TrueType Font file.\n"
+        "\n"
+        "Arguments:\n"
+        "    <path>\n"
+        "        The path to a TTF file.\n"
         "    <glyph-size>\n"
-        "            The ppem that each glyph will be rendered at.\n"
+        "        The ppem that each glyph will be rendered at.\n"
         "    <width,height>\n"
-        "            The width and height of the output image.\n"
-        "options:\n"
-        "    --help\n"
-        "            Displays this information.\n"
-        "    --spread=value\n"
-        "            How far from the edge of a glyph the effect of the distance field will be seen.\n"
-        "            The default value is glyph-size / 14.\n"
-        "    --scale=value,\n"
-        "            Distance fields will be calculated using glyphs that are scale times bigger than glyph-size.\n"
-        "            A larger scale value will give better accuracy, but calculations will take more time.\n"
-        "            The default value is 5.\n"
-        "    --padding=<left,right,top,bottom>,\n"
+        "        The width and height of output image (in pixels).\n"
+        "Options:\n"
+        "    [--spread=<value>]\n"
+        "        How far from the edge of a glyph the effect of a the distance field will be seen.\n"
+        "        The default value of is glyph-size / 14.\n"
+        "\n"
+        "    [--scale=<value>]\n"
+        "        The amount each glyph will be scaled before calculating its distance field. A larger scale\n"
+        "        value will give better accuracy, but the calculations will take more time/ resources.\n"
+        "        The default value is 5.\n"
+        "    [--padding=<left,right,top,bottom>]\n"
         "            The amount of padding there will be between glyphs.\n"
         "            The default values are 0.\n"
-        "    --out-image=<path>\n"
+        "    [--out-image=<path>]\n"
         "            The path of the output image.\n"
         "            The default path is './dffont_image.png'.\n"
-        "    --out-font=<path>\n"
+        "    [--out-font=<path>]\n"
         "            The path of the output file that contains information about the font.\n"
-        "            The default path is './dffont_info'.";
-    printf(help);
+        "            The default path is './dffont_info'.\n");
+}
+
+static void print_image_help() {
+
 }
 
 static int str_starts_with(const char* str, const char* prefix) {
@@ -73,87 +84,145 @@ static char* get_option_value(char* arg) {
     return value + 1;
 }
 
+static int try_get_spread(Args* args, char* arg) {
+    if (str_starts_with(arg, "--spread")) {
+        char* value = get_option_value(arg);
+        args->spread = parse_int(value, 0);
+        if (args->spread < 0) {
+            fprintf(stderr, "error: '%s': invalid spread value\n", value);
+            exit(1);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static int try_get_scale(Args* args, char* arg) {
+    if (str_starts_with(arg, "--scale")) {
+        char* value = get_option_value(arg);
+        args->scale = parse_int(value, 1);
+        if (args->scale < 0) {
+            fprintf(stderr, "error: '%s': invalid scale value\n", value);
+            exit(1);
+        }
+        return 1;
+    }
+    return 0;
+}
+
 void parse_args(Args* args, int argc, char** argv) {
+    // Check if no arguments were given or just --help was given
     if (argc == 1 || (argc == 2 && strcmp(argv[1], "--help") == 0)) {
-        print_help_info();
+        printf(
+            "usage: dffont [--help] <command> [<args>]\n"
+            "\n"
+            "These are the two commands that can be used:\n"
+            "    ttf      Generate distance fields for glyphs contained in a TrueType Font file.\n"
+            "    image    Generate a distance field for a given image.\n"
+        );
         exit(0);
     }
 
-    if (argc < 4) {
-        fprintf(stderr, "error: invalid arguments: use --help for more information\n");
-        exit(1);
+    // Check if a command was used without any arguments
+    // If this is the case, it behaves the as if it was paired with --help
+    if (argc == 2 && strcmp(argv[1], "ttf") == 0) {
+        print_ttf_help();
+        exit(0);
+    }
+    if (argc == 2 && strcmp(argv[1], "image") == 0) {
+        print_image_help();
+        exit(0);
     }
 
-    {
-        args->ppem = parse_int(argv[2], 1);
-        if (args->ppem < 0) {
-            fprintf(stderr, "error: '%s': invalid glyph size\n", argv[2]);
-            exit(1);
+    // Check for --help option paired with a command
+    if (argc == 3) {
+        char* command_arg = NULL;
+        if (strcmp(argv[1], "--help") == 0) {
+            command_arg = argv[1];
         }
-    }
-
-    {
-        int values[2];
-        if (!parse_comma_separated_ints(argv[3], values, 2, 1)) {
-            fprintf(stderr, "error: '%s': invalid image size\n", argv[3]);
-            exit(1);
+        if (strcmp(argv[2], "--help") == 0) {
+            command_arg = argv[2];
         }
-        args->out_image_w = values[0];
-        args->out_image_h = values[1];
-    }
-
-    args->ttf_path = argv[1];
-    args->out_image_path = NULL;
-    args->out_font_path = NULL;
-    args->spread = ceilf(args->ppem / 14.0f);
-    args->scale = 5;
-    memset(args->padding, 0, sizeof(args->padding));
-
-    for (int i = 4; i < argc; i++) {
-        char* arg = argv[i];
-
-        if (str_starts_with(arg, "--help") || str_starts_with(arg, "--help=")) {
-            fprintf(stderr, "error: use of '--help' is not valid in this context\n");
-            exit(1);
-        }
-        if (str_starts_with(arg, "--spread")) {
-            char* value = get_option_value(arg);
-            args->spread = parse_int(value, 0);
-            if (args->spread < 0) {
-                fprintf(stderr, "error: '%s': invalid value for spread\n", value);
+        if (command_arg != NULL) {
+            if (strcmp(command_arg, "ttf") == 0) {
+                print_ttf_help();
+                exit(0);
+            }
+            else if (strcmp(command_arg, "image") == 0) {
+                print_image_help();
+                exit(0);
+            }
+            else {
+                fprintf(stderr, "error: '%s': unknown command\n", command_arg);
                 exit(1);
             }
         }
-        else if (str_starts_with(arg, "--scale")) {
-            char* value = get_option_value(arg);
-            args->scale = parse_int(value, 1);
-            if (args->scale < 0) {
-                fprintf(stderr, "error: '%s': invalid value for scale\n", value);
+    }
+
+    memset(args, 0, sizeof(Args));
+
+    if (strcmp(argv[1], "ttf") == 0) {
+        // Process arguments
+        if (argc < 5) {
+            fprintf(stderr, "error: too few arguments: use --help for more information\n");
+            exit(1);
+        }
+        {
+            args->ppem = parse_int(argv[3], 1);
+            if (args->ppem < 0) {
+                fprintf(stderr, "error: '%s': invalid glyph size\n", argv[3]);
                 exit(1);
             }
         }
-        else if (str_starts_with(arg, "--padding")) {
-            char* value = get_option_value(arg);
-            if (!parse_comma_separated_ints(value, args->padding, 4, 0)) {
-                fprintf(stderr, "error: '%s': invalid value for padding\n", value);
+        {
+            int values[2];
+            if (!parse_comma_separated_ints(argv[4], values, 2, 1)) {
+                fprintf(stderr, "error: '%s': invalid image size\n", argv[4]);
                 exit(1);
             }
+            args->out_image_w = values[0];
+            args->out_image_h = values[1];
         }
-        else if (str_starts_with(arg, "--out-image")) {
-            args->out_image_path = get_option_value(arg);
-        }
-        else if (str_starts_with(arg, "--out-font")) {
-            args->out_font_path = get_option_value(arg);
-        }
-        else {
-            for (int i = 0; arg[i] != '\0'; i++) {
-                if (arg[i] == '=') {
-                    arg[i] = '\0';
-                    break;
+        args->ttf_path = argv[2];
+
+        // Set default values for spread and scale in case they are not given as options
+        args->spread = roundf(args->ppem / 14.0f);
+        args->scale = 5;
+
+        // Process options
+        for (int i = 5; i < argc; i++) {
+            char* arg = argv[i];
+
+            if (!try_get_spread(args, arg) && !try_get_scale(args, arg)) {
+                if (str_starts_with(arg, "--padding")) {
+                    char* value = get_option_value(arg);
+                    if (!parse_comma_separated_ints(value, args->padding, 4, 0)) {
+                        fprintf(stderr, "error: '%s': invalid value for padding\n", value);
+                        exit(1);
+                    }
+                }
+                else if (str_starts_with(arg, "--out-image")) {
+                    args->out_image_path = get_option_value(arg);
+                }
+                else if (str_starts_with(arg, "--out-font")) {
+                    args->out_font_path = get_option_value(arg);
+                }
+                else if (strcmp(arg, "--help") == 0) {
+                    fprintf(stderr, "error: --help is not valid in that context\n");
+                    exit(1);
+                }
+                else {
+                    fprintf(stderr, "error: '%s': unknown option\n", arg);
+                    exit(1);
                 }
             }
-            fprintf(stderr, "error: '%s': unknown option\n", arg);
-            exit(1);
         }
+    }
+    else if (strcmp(argv[1], "image") == 0) {
+        
+    }
+    else {
+        fprintf(stderr, "error: '%s': unknown command\n", argv[1]);
+        exit(1);
     }
 }
