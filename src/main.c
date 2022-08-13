@@ -152,7 +152,6 @@ int main(int argc, char** argv) {
             largest_h = glyph_h;
         }
         
-        // TODO: Add spread to offset and advance?
         WRITE_GLYPH();
 
         x += glyph_w + args.padding[0] + args.padding[1];
