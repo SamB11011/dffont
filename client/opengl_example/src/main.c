@@ -3,11 +3,7 @@
 #include <assert.h>
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
-
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-
 #include "../../src/dffont_client.h"
 
 
@@ -22,35 +18,22 @@
 #define MAX_VERTEX_VALUES (MAX_GLYPHS * 4 * VBO_STRIDE)
 #define MAX_INDICES       (MAX_GLYPHS * 6)
 
-#define FONT_IMAGE_PATH    "./fonts/bakbak-regular-df.png"
-#define FONT_INFO_PATH     "./fonts/bakbak-regular-info"
-#define NUM_GLYPHS_IN_FONT ('~' - ' ' + 1)
+#define ATLAS_PATH    "./fonts/roboto-regular-df.png"
+#define INFO_PATH     "./fonts/roboto-regular-info"
 
-typedef struct {
-    int c;
-    int x;
-    int y;
-    int w;
-    int h;
-    int xoff;
-    int yoff;
-    int xadv;
-    int yadv;
-} Glyph;
-
-static GLFWwindow* g_window;
-static Glyph       g_glyphs[NUM_GLYPHS_IN_FONT];
-static float       g_values[MAX_VERTEX_VALUES];
-static GLuint      g_indices[MAX_INDICES];
-static GLuint      g_numValues;
-static GLuint      g_numIndices;
-static GLuint      g_program;
-static GLuint      g_vbo;
-static GLuint      g_ebo;
-static GLuint      g_vao;
-static GLuint      g_texture;
-static int         g_texw;
-static int         g_texh;
+static GLFWwindow*   g_window;
+static float         g_values[MAX_VERTEX_VALUES];
+static GLuint        g_indices[MAX_INDICES];
+static DFFont_Client g_client;
+static GLuint        g_numValues;
+static GLuint        g_numIndices;
+static GLuint        g_program;
+static GLuint        g_vbo;
+static GLuint        g_ebo;
+static GLuint        g_vao;
+static GLuint        g_texture;
+static int           g_texw;
+static int           g_texh;
 
 
 /* ---------- */
@@ -207,8 +190,8 @@ GLFWwindow* create_glfw_window(const char* title, int w, int h) {
 /* --------- */
 static void draw_text(const char* text, int x, int y, float scale) {
     for (int i = 0; text[i] != '\0'; i++) {
-        Glyph* glyph = g_glyphs + (text[i] - ' ');
-        if (glyph->c == ' ') {
+        DFFont_Glyph* glyph = g_client.glyphs + (text[i] - ' ');
+        if (glyph->codepoint == ' ') {
             x += glyph->xadv * scale;
             continue;
         }
@@ -255,7 +238,7 @@ static void draw_frame() {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    draw_text("The quick brown fox jumps over the lazy dog.", 30, 30, 1.0);
+    draw_text("The quick brown fox jumps over the lazy dog.", 30, 30, 0.3);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -312,45 +295,22 @@ int main() {
     create_glfw_window("DFFont Client Example", 800, 600);
     glfwSetFramebufferSizeCallback(g_window, framebuffer_size_callback);
     
-    {
-        FILE* f = f = fopen(FONT_INFO_PATH, "r");
-        assert(f);
-        
-        int numGlyphs, ppem, linegap;
-        fscanf(f, "num_glyphs=%d\n", &numGlyphs);
-        fscanf(f, "ppem=%d\n", &ppem);
-        fscanf(f, "line_gap=%d\n", &linegap);
-        
-        assert(numGlyphs == NUM_GLYPHS_IN_FONT);
-        
-        for (int i = 0; i < numGlyphs; i++) {
-            Glyph* glyph = g_glyphs + i;
-            fscanf(
-                f, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",
-                &glyph->c, &glyph->x, &glyph->y, &glyph->w, &glyph->h, 
-                &glyph->xoff, &glyph->yoff, &glyph->xadv, &glyph->yadv);
-        }
-        
-        fclose(f);
+    if (!dffont_client_init(&g_client, INFO_PATH, ATLAS_PATH)) {
+        assert(0);
     }
+    g_texw = g_client.atlasWidth;
+    g_texh = g_client.atlasHeight;
     
-    {
-        int comp;
-        char* pixels = stbi_load(FONT_IMAGE_PATH, &g_texw, &g_texh, &comp, 0);
-        assert(pixels);
-        assert(comp == 1);
-        
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glGenTextures(1, &g_texture);
-        glBindTexture(GL_TEXTURE_2D, g_texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, g_texw, g_texh, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // TODO: Is this the right filter?
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // TODO: Is this the right filter?
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glGenTextures(1, &g_texture);
+    glBindTexture(GL_TEXTURE_2D, g_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, g_texw, g_texh, 0, GL_RED, GL_UNSIGNED_BYTE, g_client.atlasPixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
     
     g_program = create_gl_program_object("./shaders/vs.glsl", "./shaders/fs.glsl");
     

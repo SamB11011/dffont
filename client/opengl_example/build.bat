@@ -9,7 +9,9 @@ set GLAD_DIR=.\src\glad
 set GLAD_SRC=%GLAD_DIR%\glad.c
 set GLAD_INC=%GLAD_DIR%\include
 
-set SRC=.\src\*.c
+set STB_INC=.\src
+
+set SRC=.\src\*.c ..\src\dffont_client.c
 set EXE_NAME=example.exe
 
 if not exist glfw3.dll (
@@ -19,7 +21,7 @@ if not exist glfw3.dll (
 cl ^
     /Fe%EXE_NAME% ^
     %GLAD_SRC% %SRC% ^
-    /I%GLFW3_INC% /I%GLAD_INC% ^
+    /I%GLFW3_INC% /I%GLAD_INC% /I%STB_INC% ^
     /link /libpath %GLFW3_LIB%
 
 if exist *.obj (

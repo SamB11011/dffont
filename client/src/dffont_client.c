@@ -25,17 +25,21 @@ int dffont_client_init(DFFont_Client* client, const char* filepath, const char* 
         DFFONT_CLIENT_FSCANF(1, "ppem=%d\n", &client->ppemInitial);
         DFFONT_CLIENT_FSCANF(1, "line_gap=%d\n", &client->lineGap);
         
-        if (client->numGlyphs != DFFONT_NUM_GLYPHS) {
+        if (client->numGlyphs != DFFONT_NUM_CHARS) {
             fclose(file);
             return 0;
         }
         
-        for (int i = 0; i < numGlyphs; i++) {
-            Glyph* glyph = client->glyphs + i;
+        for (int i = 0; i < DFFONT_NUM_CHARS; i++) {
+            DFFont_Glyph* glyph = client->glyphs + i;
             DFFONT_CLIENT_FSCANF(
-                9, file, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",
+                9, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",
                 &glyph->codepoint, &glyph->x, &glyph->y, &glyph->w, &glyph->h, 
                 &glyph->xoff, &glyph->yoff, &glyph->xadv, &glyph->yadv);
+            
+            printf("%c,  %d, %d,  %d, %d,  %d, %d,  %d, %d\n", 
+                   glyph->codepoint, glyph->x, glyph->y, glyph->w, glyph->h, 
+                   glyph->xoff, glyph->yoff, glyph->xadv, glyph->yadv);
         }
         
         fclose(file);
