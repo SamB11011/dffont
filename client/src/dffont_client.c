@@ -36,10 +36,6 @@ int dffont_client_init(DFFont_Client* client, const char* filepath, const char* 
                 9, "char=%d, x=%d, y=%d, w=%d, h=%d, xoff=%d, yoff=%d, xadv=%d, yadv=%d\n",
                 &glyph->codepoint, &glyph->x, &glyph->y, &glyph->w, &glyph->h, 
                 &glyph->xoff, &glyph->yoff, &glyph->xadv, &glyph->yadv);
-            
-            printf("%c,  %d, %d,  %d, %d,  %d, %d,  %d, %d\n", 
-                   glyph->codepoint, glyph->x, glyph->y, glyph->w, glyph->h, 
-                   glyph->xoff, glyph->yoff, glyph->xadv, glyph->yadv);
         }
         
         fclose(file);
